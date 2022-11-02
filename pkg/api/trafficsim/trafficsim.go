@@ -11,6 +11,7 @@ import (
 	"github.com/onosproject/ran-simulator/pkg/store/event"
 
 	simapi "github.com/onosproject/onos-api/go/onos/ransim/trafficsim"
+	"github.com/onosproject/onos-api/go/onos/ransim/types"
 
 	simtypes "github.com/onosproject/onos-api/go/onos/ransim/types"
 	liblog "github.com/onosproject/onos-lib-go/pkg/logging"
@@ -69,7 +70,7 @@ func (s *Server) GetMapLayout(ctx context.Context, req *simapi.MapLayoutRequest)
 	}, nil
 }
 
-func ueToAPI(ue *model.UE) *simtypes.Ue {
+func ueToAPI(model *model.Model, ue *model.UE) *simtypes.Ue {
 	r := &simtypes.Ue{
 		IMSI:     ue.IMSI,
 		Type:     string(ue.Type),
@@ -78,6 +79,15 @@ func ueToAPI(ue *model.UE) *simtypes.Ue {
 		CRNTI:    ue.CRNTI,
 		Admitted: ue.IsAdmitted,
 		RrcState: uint32(ue.RrcState),
+		Ueid: &types.UeIdentity{
+			Guami: &types.Guami{
+				Plmnid:      uint32(model.PlmnID),
+				AmfRegionId: model.Guami.AmfRegionID,
+				AmfSetId:    model.Guami.AmfSetID,
+				AmfPointer:  model.Guami.AmfPointer,
+			},
+			AmfUeNgapId: ue.AmfUeNgapID,
+		},
 	}
 	if ue.Cell != nil {
 		r.ServingTower = simtypes.NCGI(ue.Cell.ID)
@@ -111,7 +121,7 @@ func (s *Server) ListUes(request *simapi.ListUesRequest, stream simapi.Traffic_L
 	ueList := s.ueStore.ListAllUEs(stream.Context())
 	for _, ue := range ueList {
 		resp := &simapi.ListUesResponse{
-			Ue: ueToAPI(ue),
+			Ue: ueToAPI(s.model, ue),
 		}
 		log.Infof("UE: %v", ue)
 		err := stream.Send(resp)
@@ -133,7 +143,7 @@ func (s *Server) WatchUes(request *simapi.WatchUesRequest, server simapi.Traffic
 	}
 	for ueEvent := range ch {
 		response := &simapi.WatchUesResponse{
-			Ue: ueToAPI(ueEvent.Value.(*model.UE)),
+			Ue: ueToAPI(s.model, ueEvent.Value.(*model.UE)),
 		}
 		err := server.Send(response)
 		if err != nil {

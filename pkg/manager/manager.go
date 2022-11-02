@@ -151,7 +151,7 @@ func (m *Manager) startNorthboundServer() error {
 	m.server.AddService(cellapi.NewService(m.cellStore))
 	m.server.AddService(trafficsim.NewService(m.model, m.cellStore, m.ueStore))
 	m.server.AddService(metricsapi.NewService(m.metricsStore))
-	m.server.AddService(ueapi.NewService(m.ueStore))
+	m.server.AddService(ueapi.NewService(m.model, m.ueStore))
 	m.server.AddService(routeapi.NewService(m.routeStore))
 	m.server.AddService(modelapi.NewService(m))
 

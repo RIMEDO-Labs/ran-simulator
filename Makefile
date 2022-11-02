@@ -7,7 +7,7 @@ export GO111MODULE=on
 
 .PHONY: build
 
-RAN_SIMULATOR_VERSION := latest
+RAN_SIMULATOR_VERSION := v0.10.6
 ONOS_PROTOC_VERSION := v0.6.9
 
 OUTPUT_DIR=./build/_output
@@ -42,7 +42,7 @@ model-files: # @HELP generate various model and model-topo YAML files in sdran-h
 
 ran-simulator-docker: # @HELP build ran-simulator Docker image
 	@go mod vendor
-	docker build . -f build/ran-simulator/Dockerfile \
+	sudo docker build . -f build/ran-simulator/Dockerfile \
 		-t onosproject/ran-simulator:${RAN_SIMULATOR_VERSION}
 
 images: # @HELP build all Docker images

@@ -22,8 +22,9 @@ import (
 var log = liblog.GetLogger()
 
 // NewService returns a new model Service
-func NewService(ueStore ues.Store) service.Service {
+func NewService(model *model.Model, ueStore ues.Store) service.Service {
 	return &Service{
+		model:   model,
 		ueStore: ueStore,
 	}
 }
@@ -31,12 +32,14 @@ func NewService(ueStore ues.Store) service.Service {
 // Service is a Service implementation for administration.
 type Service struct {
 	service.Service
+	model   *model.Model
 	ueStore ues.Store
 }
 
 // Register registers the TrafficSim Service with the gRPC server.
 func (s *Service) Register(r *grpc.Server) {
 	server := &Server{
+		model:   s.model,
 		ueStore: s.ueStore,
 	}
 	modelapi.RegisterUEModelServer(r, server)
@@ -44,6 +47,7 @@ func (s *Service) Register(r *grpc.Server) {
 
 // Server implements the Routes gRPC service for administrative facilities.
 type Server struct {
+	model   *model.Model
 	ueStore ues.Store
 }
 
@@ -58,7 +62,7 @@ func (s *Server) SetUECount(ctx context.Context, request *modelapi.SetUECountReq
 	return &modelapi.SetUECountResponse{}, nil
 }
 
-func ueToAPI(ue *model.UE) *types.Ue {
+func ueToAPI(model *model.Model, ue *model.UE) *types.Ue {
 	r := &types.Ue{
 		IMSI:     ue.IMSI,
 		Type:     string(ue.Type),
@@ -69,6 +73,15 @@ func ueToAPI(ue *model.UE) *types.Ue {
 		RrcState: uint32(ue.RrcState),
 		Metrics:  nil,
 		FiveQi:   int32(ue.FiveQi),
+		Ueid: &types.UeIdentity{
+			Guami: &types.Guami{
+				Plmnid:      uint32(model.PlmnID),
+				AmfRegionId: model.Guami.AmfRegionID,
+				AmfSetId:    model.Guami.AmfSetID,
+				AmfPointer:  model.Guami.AmfPointer,
+			},
+			AmfUeNgapId: ue.AmfUeNgapID,
+		},
 	}
 	if ue.Cell != nil {
 		r.ServingTower = ue.Cell.NCGI
@@ -96,7 +109,7 @@ func (s *Server) GetUE(ctx context.Context, request *modelapi.GetUERequest) (*mo
 	if err != nil {
 		return nil, err
 	}
-	return &modelapi.GetUEResponse{Ue: ueToAPI(ue)}, nil
+	return &modelapi.GetUEResponse{Ue: ueToAPI(s.model, ue)}, nil
 }
 
 // MoveToCell moves the specified UE to the given cell
@@ -146,7 +159,7 @@ func (s *Server) WatchUEs(request *modelapi.WatchUEsRequest, server modelapi.UEM
 
 	for ueEvent := range ch {
 		response := &modelapi.WatchUEsResponse{
-			Ue:   ueToAPI(ueEvent.Value.(*model.UE)),
+			Ue:   ueToAPI(s.model, ueEvent.Value.(*model.UE)),
 			Type: eventType(ueEvent.Type.(ues.UeEvent)),
 		}
 		err := server.Send(response)
@@ -163,7 +176,7 @@ func (s *Server) ListUEs(request *modelapi.ListUEsRequest, server modelapi.UEMod
 	ueList := s.ueStore.ListAllUEs(server.Context())
 	for _, ue := range ueList {
 		resp := &modelapi.ListUEsResponse{
-			Ue: ueToAPI(ue),
+			Ue: ueToAPI(s.model, ue),
 		}
 		err := server.Send(resp)
 		if err != nil {

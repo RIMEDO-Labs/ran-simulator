@@ -1,0 +1,1 @@
+helm -n riab install ran-simulator ~/Documents/onf_software/sdran-in-a-box/workspace/helm-charts/sdran-helm-charts/ran-simulator --values ~/Documents/onf_software/sdran-in-a-box/workspace/helm-charts/sdran-helm-charts/ran-simulator/values.yaml
